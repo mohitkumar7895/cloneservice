@@ -70,10 +70,14 @@ export async function updateWorkingStatus(formData: FormData) {
             const couponCode = generateCouponCode();
             
             // Insert into coupons table (10% standard discount)
-            await pool.query(
-              "INSERT INTO coupons (code, discount_type, discount_value, mobile) VALUES (?, 'percentage', 10.00, ?)",
-              [couponCode, booking.mobile]
-            );
+            try {
+              await pool.query(
+                "INSERT INTO coupons (code, discount_type, discount_value, mobile) VALUES (?, 'percentage', 10.00, ?)",
+                [couponCode, booking.mobile]
+              );
+            } catch (couponErr) {
+              console.error("Failed to insert coupon:", couponErr);
+            }
             
             // Update booking with status and amc_coupon_code
             await pool.query(
@@ -82,11 +86,15 @@ export async function updateWorkingStatus(formData: FormData) {
             );
             revalidatePath("/admin/booking", 'layout');
             revalidatePath("/admin/warranties", 'layout');
+            revalidatePath("/my-bookings", 'layout');
+            revalidatePath("/my-amc", 'layout');
           } else {
             // Update booking status directly
             await pool.query("UPDATE bookings SET working_status = ? WHERE id = ?", [status, id]);
             revalidatePath("/admin/booking", 'layout');
             revalidatePath("/admin/warranties", 'layout');
+            revalidatePath("/my-bookings", 'layout');
+            revalidatePath("/my-amc", 'layout');
           }
 
           // Referral payout logic: If referred_by exists, add ₹100 to the referrer's wallet
@@ -125,6 +133,8 @@ export async function updateWorkingStatus(formData: FormData) {
       // Default update if not Complete or if not matching criteria
       await pool.query("UPDATE bookings SET working_status = ? WHERE id = ?", [status, id]);
       revalidatePath("/admin/booking", 'layout');
+      revalidatePath("/my-bookings", 'layout');
+      revalidatePath("/my-amc", 'layout');
     } catch (error) {
       console.error("Error updating working status:", error);
     }
@@ -137,6 +147,8 @@ export async function updateTotal(formData: FormData) {
   if (id && total) {
     await pool.query("UPDATE bookings SET total = ? WHERE id = ?", [total, id]);
     revalidatePath("/admin/booking", 'layout');
+    revalidatePath("/my-bookings", 'layout');
+    revalidatePath("/my-amc", 'layout');
   }
 }
 
@@ -146,6 +158,8 @@ export async function updateCashback(formData: FormData) {
   if (id && amount) {
     await pool.query("UPDATE bookings SET cashback_amount = ? WHERE id = ?", [amount, id]);
     revalidatePath("/admin/booking", 'layout');
+    revalidatePath("/my-bookings", 'layout');
+    revalidatePath("/my-amc", 'layout');
   }
 }
 
@@ -156,6 +170,8 @@ export async function updatePaymentStatus(formData: FormData) {
     try {
       await pool.query("UPDATE bookings SET payment_status = ? WHERE id = ?", [status, id]);
       revalidatePath("/admin/booking", 'layout');
+      revalidatePath("/my-bookings", 'layout');
+      revalidatePath("/my-amc", 'layout');
     } catch (error) {
       console.error("Error updating payment status:", error);
     }
