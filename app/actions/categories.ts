@@ -45,38 +45,43 @@ export async function saveCategory(formData: FormData) {
   const warrantyDays = formData.get("warranty_days") as string || "180";
   const shortDescription = formData.get("short_description") as string || "";
 
-  let imageUrl = "";
-
-  const uploadDir = path.join(process.cwd(), "public/uploads/categories");
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-  }
-
-  if (image && image.size > 0) {
-    const bytes = await image.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    const fileName = `${Date.now()}-${image.name.replace(/\s+/g, '-')}`;
-    const filePath = path.join(uploadDir, fileName);
-    await writeFile(filePath, buffer);
-    imageUrl = `/uploads/categories/${fileName}`;
-  }
-
-  await runMigration();
+  let shouldRedirect = false;
 
   try {
+    let imageUrl = "";
+
+    const uploadDir = path.join(process.cwd(), "public/uploads/categories");
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    if (image && image.size > 0) {
+      const bytes = await image.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+      const fileName = `${Date.now()}-${image.name.replace(/\s+/g, '-')}`;
+      const filePath = path.join(uploadDir, fileName);
+      await writeFile(filePath, buffer);
+      imageUrl = `/uploads/categories/${fileName}`;
+    }
+
+    await runMigration();
+
     const query = `
       INSERT INTO categories (title, type, labour_charges, zones, zones_location, image_url, warranty_days, short_description)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `;
     
-    await pool.query(query, [title, type, parseInt(labourCharges), parseInt(zones), zonesLocation || '', imageUrl, parseInt(warrantyDays), shortDescription]);
+    await pool.query(query, [title, type, parseInt(labourCharges) || 0, parseInt(zones) || 1, zonesLocation || '', imageUrl, parseInt(warrantyDays) || 180, shortDescription]);
+    shouldRedirect = true;
   } catch (error) {
     console.error("Error saving category:", error);
-    return { error: "Failed to save category" };
+    return { error: error instanceof Error ? error.message : "Failed to save category" };
   }
 
-  revalidatePath("/admin/categories");
-  redirect("/admin/categories");
+  if (shouldRedirect) {
+    revalidatePath("/admin/categories");
+    redirect("/admin/categories");
+  }
 }
 
 export async function deleteCategory(formData: FormData) {
@@ -98,14 +103,15 @@ export async function updateCategory(formData: FormData) {
   const warrantyDays = formData.get("warranty_days") as string || "180";
   const shortDescription = formData.get("short_description") as string || "";
 
-  await runMigration();
+  let shouldRedirect = false;
 
   try {
+    await runMigration();
     let query = `
       UPDATE categories 
       SET title = ?, type = ?, labour_charges = ?, zones = ?, zones_location = ?, warranty_days = ?, short_description = ?
     `;
-    let params: any[] = [title, type, parseInt(labourCharges) || 0, parseInt(zones) || 1, zonesLocation || '', parseInt(warrantyDays), shortDescription];
+    let params: any[] = [title, type, parseInt(labourCharges) || 0, parseInt(zones) || 1, zonesLocation || '', parseInt(warrantyDays) || 180, shortDescription];
 
     if (image && image.size > 0) {
       const uploadDir = path.join(process.cwd(), "public/uploads/categories");
@@ -128,12 +134,15 @@ export async function updateCategory(formData: FormData) {
     params.push(id);
     
     await pool.query(query, params);
+    shouldRedirect = true;
   } catch (error) {
     console.error("Error updating category:", error);
-    return { error: "Failed to update category" };
+    return { error: error instanceof Error ? error.message : "Failed to update category" };
   }
 
-  revalidatePath("/admin/categories");
-  redirect("/admin/categories");
+  if (shouldRedirect) {
+    revalidatePath("/admin/categories");
+    redirect("/admin/categories");
+  }
 }
 

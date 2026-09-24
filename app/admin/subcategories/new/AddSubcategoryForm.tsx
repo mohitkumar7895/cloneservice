@@ -14,8 +14,11 @@ export default function AddSubcategoryForm({ categories }: { categories: any[] }
     const formData = new FormData(e.currentTarget);
     
     try {
-      await saveSubcategory(formData);
-      // The action handles the redirect
+      const res = await saveSubcategory(formData);
+      if (res?.error) {
+        alert("Error: " + res.error);
+        setIsSubmitting(false);
+      }
     } catch (error) {
       console.error("Error saving:", error);
       setIsSubmitting(false);

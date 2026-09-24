@@ -9,7 +9,11 @@ export default function AddCategoryForm() {
 
   async function handleSubmit(formData: FormData) {
     setLoading(true);
-    await saveCategory(formData);
+    const res = await saveCategory(formData);
+    if (res?.error) {
+      alert("Error: " + res.error);
+      setLoading(false);
+    }
   }
 
   return (

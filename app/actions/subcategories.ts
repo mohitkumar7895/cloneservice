@@ -11,37 +11,42 @@ export async function saveSubcategory(formData: FormData) {
   const title = formData.get("title") as string;
   const image = formData.get("image") as File | null;
 
-  let imageUrl = "";
-
-  if (image && image.size > 0) {
-    const uploadDir = path.join(process.cwd(), "public/uploads/subcategories");
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-
-    const fileName = `${Date.now()}-${image.name}`;
-    const filePath = path.join(uploadDir, fileName);
-
-    const buffer = Buffer.from(await image.arrayBuffer());
-    fs.writeFileSync(filePath, buffer);
-
-    imageUrl = `/uploads/subcategories/${fileName}`;
-  }
+  let shouldRedirect = false;
 
   try {
+    let imageUrl = "";
+
+    if (image && image.size > 0) {
+      const uploadDir = path.join(process.cwd(), "public/uploads/subcategories");
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+
+      const fileName = `${Date.now()}-${image.name}`;
+      const filePath = path.join(uploadDir, fileName);
+
+      const buffer = Buffer.from(await image.arrayBuffer());
+      fs.writeFileSync(filePath, buffer);
+
+      imageUrl = `/uploads/subcategories/${fileName}`;
+    }
+
     const query = `
       INSERT INTO subcategories (category_id, title, image_url)
       VALUES (?, ?, ?)
     `;
     
     await pool.query(query, [parseInt(categoryId), title, imageUrl]);
+    shouldRedirect = true;
   } catch (error) {
     console.error("Error saving subcategory:", error);
-    return { error: "Failed to save subcategory" };
+    return { error: error instanceof Error ? error.message : "Failed to save subcategory" };
   }
 
-  revalidatePath("/admin/subcategories");
-  redirect("/admin/subcategories");
+  if (shouldRedirect) {
+    revalidatePath("/admin/subcategories");
+    redirect("/admin/subcategories");
+  }
 }
 
 export async function updateSubcategory(formData: FormData) {
@@ -49,6 +54,8 @@ export async function updateSubcategory(formData: FormData) {
   const categoryId = formData.get("category_id") as string;
   const title = formData.get("title") as string;
   const image = formData.get("image") as File | null;
+
+  let shouldRedirect = false;
 
   try {
     let query = `
@@ -78,13 +85,16 @@ export async function updateSubcategory(formData: FormData) {
     params.push(id);
 
     await pool.query(query, params);
+    shouldRedirect = true;
   } catch (error) {
     console.error("Error updating subcategory:", error);
-    return { error: "Failed to update subcategory" };
+    return { error: error instanceof Error ? error.message : "Failed to update subcategory" };
   }
 
-  revalidatePath("/admin/subcategories");
-  redirect("/admin/subcategories");
+  if (shouldRedirect) {
+    revalidatePath("/admin/subcategories");
+    redirect("/admin/subcategories");
+  }
 }
 
 export async function deleteSubcategory(formData: FormData) {
