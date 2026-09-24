@@ -21,19 +21,16 @@ export async function saveService(formData: FormData) {
   const image = formData.get("image") as File | null;
   let imageUrl = "";
 
-  if (image && image.size > 0) {
-    const uploadDir = path.join(process.cwd(), "public/uploads/services");
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    const fileName = `${Date.now()}-${image.name.replace(/\s+/g, '-')}`;
-    const filePath = path.join(uploadDir, fileName);
-    const buffer = Buffer.from(await image.arrayBuffer());
-    fs.writeFileSync(filePath, buffer);
-    imageUrl = `/uploads/services/${fileName}`;
-  }
+  let shouldRedirect = false;
 
   try {
+    if (image && image.size > 0) {
+      const bytes = await image.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+      const mimeType = image.type || "image/png";
+      imageUrl = `data:${mimeType};base64,${buffer.toString('base64')}`;
+    }
+
     const query = `
       INSERT INTO services (
         category_id, subcategory_id, title, original_price, selling_price, 
@@ -54,9 +51,15 @@ export async function saveService(formData: FormData) {
       long_description,
       imageUrl || null
     ]);
+    shouldRedirect = true;
   } catch (error) {
     console.error("Error saving service:", error);
-    return { error: "Failed to save service" };
+    return { error: error instanceof Error ? error.message : "Failed to save service" };
+  }
+
+  if (shouldRedirect) {
+    revalidatePath("/admin/services");
+    redirect("/admin/services");
   }
 
   revalidatePath("/admin/services");
@@ -78,6 +81,8 @@ export async function updateService(formData: FormData) {
   
   const image = formData.get("image") as File | null;
 
+  let shouldRedirect = false;
+
   try {
     let query = `
       UPDATE services SET 
@@ -92,30 +97,29 @@ export async function updateService(formData: FormData) {
     ];
 
     if (image && image.size > 0) {
-      const uploadDir = path.join(process.cwd(), "public/uploads/services");
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-      }
-      const fileName = `${Date.now()}-${image.name.replace(/\s+/g, '-')}`;
-      const filePath = path.join(uploadDir, fileName);
-      const buffer = Buffer.from(await image.arrayBuffer());
-      fs.writeFileSync(filePath, buffer);
+      const bytes = await image.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+      const mimeType = image.type || "image/png";
+      const imageUrl = `data:${mimeType};base64,${buffer.toString('base64')}`;
       
       query += `, image_url = ?`;
-      params.push(`/uploads/services/${fileName}`);
+      params.push(imageUrl);
     }
 
     query += ` WHERE id = ?`;
     params.push(id);
 
     await pool.query(query, params);
+    shouldRedirect = true;
   } catch (error) {
     console.error("Error updating service:", error);
-    return { error: "Failed to update service" };
+    return { error: error instanceof Error ? error.message : "Failed to update service" };
   }
 
-  revalidatePath("/admin/services");
-  redirect("/admin/services");
+  if (shouldRedirect) {
+    revalidatePath("/admin/services");
+    redirect("/admin/services");
+  }
 }
 
 export async function deleteService(formData: FormData) {

@@ -50,18 +50,11 @@ export async function saveCategory(formData: FormData) {
   try {
     let imageUrl = "";
 
-    const uploadDir = path.join(process.cwd(), "public/uploads/categories");
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-
     if (image && image.size > 0) {
       const bytes = await image.arrayBuffer();
       const buffer = Buffer.from(bytes);
-      const fileName = `${Date.now()}-${image.name.replace(/\s+/g, '-')}`;
-      const filePath = path.join(uploadDir, fileName);
-      await writeFile(filePath, buffer);
-      imageUrl = `/uploads/categories/${fileName}`;
+      const mimeType = image.type || "image/png";
+      imageUrl = `data:${mimeType};base64,${buffer.toString('base64')}`;
     }
 
     await runMigration();
@@ -114,18 +107,11 @@ export async function updateCategory(formData: FormData) {
     let params: any[] = [title, type, parseInt(labourCharges) || 0, parseInt(zones) || 1, zonesLocation || '', parseInt(warrantyDays) || 180, shortDescription];
 
     if (image && image.size > 0) {
-      const uploadDir = path.join(process.cwd(), "public/uploads/categories");
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-      }
-      
       const bytes = await image.arrayBuffer();
       const buffer = Buffer.from(bytes);
-      const fileName = `${Date.now()}-${image.name.replace(/\s+/g, '-')}`;
-      const filePath = path.join(uploadDir, fileName);
-      await writeFile(filePath, buffer);
+      const mimeType = image.type || "image/png";
+      const imageUrl = `data:${mimeType};base64,${buffer.toString('base64')}`;
       
-      const imageUrl = `/uploads/categories/${fileName}`;
       query += `, image_url = ?`;
       params.push(imageUrl);
     }

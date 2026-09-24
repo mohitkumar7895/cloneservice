@@ -19,21 +19,16 @@ export async function saveKyc(formData: FormData) {
 
   let chequeUrl = "";
 
-  const uploadDir = path.join(process.cwd(), "public/uploads/kyc");
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-  }
-
-  if (cheque && cheque.size > 0) {
-    const bytes = await cheque.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    const fileName = `${Date.now()}-${cheque.name.replace(/\s+/g, '-')}`;
-    const filePath = path.join(uploadDir, fileName);
-    await writeFile(filePath, buffer);
-    chequeUrl = `/uploads/kyc/${fileName}`;
-  }
+  let shouldRedirect = false;
 
   try {
+    if (cheque && cheque.size > 0) {
+      const bytes = await cheque.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+      const mimeType = cheque.type || "image/png";
+      chequeUrl = `data:${mimeType};base64,${buffer.toString('base64')}`;
+    }
+
     const query = `
       INSERT INTO kyc_records (user_name, pan_card, aadhar_card, bank_name, branch, account_number, ifsc_code, cheque_image_url)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -42,9 +37,10 @@ export async function saveKyc(formData: FormData) {
     await pool.query(query, [
       userName, panCard, aadharCard, bankName, branch, accountNumber, ifscCode, chequeUrl
     ]);
+    shouldRedirect = true;
   } catch (error) {
     console.error("Error saving KYC:", error);
-    return { error: "Failed to save KYC" };
+    return { error: error instanceof Error ? error.message : "Failed to save KYC" };
   }
 
   revalidatePath("/admin/kyc");

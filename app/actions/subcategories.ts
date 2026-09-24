@@ -17,18 +17,10 @@ export async function saveSubcategory(formData: FormData) {
     let imageUrl = "";
 
     if (image && image.size > 0) {
-      const uploadDir = path.join(process.cwd(), "public/uploads/subcategories");
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-      }
-
-      const fileName = `${Date.now()}-${image.name}`;
-      const filePath = path.join(uploadDir, fileName);
-
-      const buffer = Buffer.from(await image.arrayBuffer());
-      fs.writeFileSync(filePath, buffer);
-
-      imageUrl = `/uploads/subcategories/${fileName}`;
+      const bytes = await image.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+      const mimeType = image.type || "image/png";
+      imageUrl = `data:${mimeType};base64,${buffer.toString('base64')}`;
     }
 
     const query = `
@@ -65,18 +57,10 @@ export async function updateSubcategory(formData: FormData) {
     let params: any[] = [parseInt(categoryId), title];
 
     if (image && image.size > 0) {
-      const uploadDir = path.join(process.cwd(), "public/uploads/subcategories");
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-      }
-
-      const fileName = `${Date.now()}-${image.name}`;
-      const filePath = path.join(uploadDir, fileName);
-
-      const buffer = Buffer.from(await image.arrayBuffer());
-      fs.writeFileSync(filePath, buffer);
-
-      const imageUrl = `/uploads/subcategories/${fileName}`;
+      const bytes = await image.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+      const mimeType = image.type || "image/png";
+      const imageUrl = `data:${mimeType};base64,${buffer.toString('base64')}`;
       query += `, image_url = ?`;
       params.push(imageUrl);
     }
